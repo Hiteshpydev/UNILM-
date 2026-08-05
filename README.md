@@ -1,5 +1,5 @@
 # UNILLM
- UNILM is an AI-powered study assistant that allows students to upload notes and ask questions grounded in their own documents.
+ UNILLM is an AI-powered study assistant that allows students to upload notes and ask questions grounded in their own documents.
 
 ## Current Status
 
@@ -10,3 +10,4 @@ Tech Stack:
 - Streamlit
 - Qdrant Cloud (later)
 - Gemini Flash (later)
+
