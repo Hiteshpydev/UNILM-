@@ -1,32 +1,61 @@
-import fitz  # PyMuPDF
+import pymupdf as fitz
 from pathlib import Path
 
 
 def parse_pdf(file_path):
     """
-    Reads a PDF and extracts text page by page.
+    Extract text from a PDF page by page.
 
     Returns:
-        List of dictionaries containing:
-        - source (filename)
-        - page number
-        - extracted text
+        {
+            "metadata": {
+                "source": filename,
+                "page_count": number_of_pages
+            },
+            "pages": [
+                {
+                    "page": page_number,
+                    "text": page_text
+                }
+            ]
+        }
     """
 
-    pdf = fitz.open(file_path)
+    try:
+        pdf = fitz.open(file_path)
 
-    pages = []
+        
 
-    for page_number, page in enumerate(pdf, start=1):
+        data= []
 
-        text = page.get_text()
+        for page_number, page in enumerate(pdf, start=1):
+            text = page.get_text().strip()
 
-        pages.append({
+            # Skip pages with no extractable text
+            if not text:
+                continue
+
+            data.append({
+    "location": {
+        "type": "page",
+        "number": page_number
+    },
+    "text": text
+})
+        metadata = {
             "source": Path(file_path).name,
-            "page": page_number,
-            "text": text.strip()
-        })
+            "file_type": "pdf",
+            "page_count": len(data)
+        }
 
-    pdf.close()
+        pdf.close()
 
-    return pages
+        return {
+            "metadata": metadata,
+            "data": data
+        }
+
+    except Exception as e:
+        raise ValueError(f"Could not parse PDF: {e}")
+    
+    
