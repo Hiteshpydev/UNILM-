@@ -4,18 +4,36 @@ from pathlib import Path
 
 def parse_docx(file_path):
     """
-    Extract text from a Word document paragraph by paragraph.
+    Extract paragraphs and tables from a Word document.
 
     Returns:
         {
             "metadata": {
                 "source": filename,
-                "paragraph_count": number_of_paragraphs
+                "file_type": "docx",
+                "paragraph_count": number_of_paragraphs,
+                "table_count": number_of_tables
             },
-            "paragraphs": [
+            "data": [
                 {
-                    "paragraph": paragraph_number,
-                    "text": paragraph_text
+                    "location": {
+                        "type": "paragraph",
+                        "number": paragraph_number
+                    },
+                    "content": {
+                        "type": "text",
+                        "text": paragraph_text
+                    }
+                },
+                {
+                    "location": {
+                        "type": "table",
+                        "number": table_number
+                    },
+                    "content": {
+                        "type": "table",
+                        "data": table_data
+                    }
                 }
             ]
         }
@@ -26,6 +44,12 @@ def parse_docx(file_path):
 
         data = []
 
+        # ----------------------------------------
+        # Extract paragraphs
+        # ----------------------------------------
+
+        paragraph_count = 0
+
         for paragraph_number, paragraph in enumerate(
             document.paragraphs,
             start=1
@@ -35,19 +59,71 @@ def parse_docx(file_path):
             if not text:
                 continue
 
+            paragraph_count += 1
+
             data.append({
-    "location": {
-        "type": "paragraph",
-        "number": paragraph_number
-    },
-    "text": text
-})
+                "location": {
+                    "type": "paragraph",
+                    "number": paragraph_number
+                },
+                "content": {
+                    "type": "text",
+                    "text": text
+                }
+            })
+
+        # ----------------------------------------
+        # Extract tables
+        # ----------------------------------------
+
+        table_count = 0
+
+        for table_number, table in enumerate(
+            document.tables,
+            start=1
+        ):
+            table_data = []
+
+            for row in table.rows:
+                row_data = []
+
+                for cell in row.cells:
+                    row_data.append(
+                        cell.text.strip()
+                    )
+
+                table_data.append(row_data)
+
+            # Skip completely empty tables
+            if not any(
+                any(cell for cell in row)
+                for row in table_data
+            ):
+                continue
+
+            table_count += 1
+
+            data.append({
+                "location": {
+                    "type": "table",
+                    "number": table_number
+                },
+                "content": {
+                    "type": "table",
+                    "data": table_data
+                }
+            })
+
+        # ----------------------------------------
+        # Metadata
+        # ----------------------------------------
 
         metadata = {
-    "source": Path(file_path).name,
-    "file_type": "docx",
-    "paragraph_count": len(data)
-}
+            "source": Path(file_path).name,
+            "file_type": "docx",
+            "paragraph_count": paragraph_count,
+            "table_count": table_count
+        }
 
         return {
             "metadata": metadata,
@@ -55,5 +131,6 @@ def parse_docx(file_path):
         }
 
     except Exception as e:
-        raise ValueError(f"Could not parse DOCX: {e}")
-    
+        raise ValueError(
+            f"Could not parse DOCX: {e}"
+        )

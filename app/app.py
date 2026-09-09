@@ -4,11 +4,30 @@ import tempfile
 import os
 
 
+# --------------------------------------------------
+# Page configuration
+# --------------------------------------------------
+
 st.set_page_config(
     page_title="UNILLM",
     page_icon="📚"
 )
 
+
+# --------------------------------------------------
+# Session state
+# --------------------------------------------------
+
+if "documents" not in st.session_state:
+    st.session_state.documents = []
+
+if "processed_files" not in st.session_state:
+    st.session_state.processed_files = set()
+
+
+# --------------------------------------------------
+# UI
+# --------------------------------------------------
 
 st.title("📚 UNILLM")
 
@@ -24,14 +43,23 @@ uploaded_files = st.file_uploader(
 )
 
 
+# --------------------------------------------------
+# Process uploaded files
+# --------------------------------------------------
+
 if uploaded_files:
 
     for uploaded_file in uploaded_files:
+
+        # Skip files that have already been processed
+        if uploaded_file.name in st.session_state.processed_files:
+            continue
 
         file_extension = os.path.splitext(
             uploaded_file.name
         )[1].lower()
 
+        # Save uploaded file temporarily
         with tempfile.NamedTemporaryFile(
             delete=False,
             suffix=file_extension
@@ -45,37 +73,20 @@ if uploaded_files:
 
         try:
 
+            # Send file to ingestion manager
             result = process_file(temp_path)
 
+            # Store processed document
+            st.session_state.documents.append(result)
+
+            # Remember processed file
+            st.session_state.processed_files.add(
+                uploaded_file.name
+            )
+
             st.success(
-                f"Processed "
-                f"{result['metadata']['source']}"
+                f"Processed: {uploaded_file.name}"
             )
-
-            st.write(
-                f"Type: "
-                f"{result['metadata']['file_type']}"
-            )
-
-            st.write(
-                f"Extracted items: "
-                f"{len(result['data'])}"
-            )
-
-            for item in result["data"]:
-
-                location = item["location"]
-
-                st.subheader(
-                    f"{location['type'].title()} "
-                    f"{location['number']}"
-                )
-
-                st.write(
-                    item["text"][:500]
-                )
-
-                st.divider()
 
         except ValueError as e:
 
@@ -84,6 +95,55 @@ if uploaded_files:
                 f"{uploaded_file.name}: {e}"
             )
 
+        except Exception as e:
+
+            st.error(
+                f"Unexpected error while processing "
+                f"{uploaded_file.name}: {e}"
+            )
+
         finally:
 
-            os.remove(temp_path)
+            # Remove temporary file
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
+
+
+# --------------------------------------------------
+# Display session document count
+# --------------------------------------------------
+
+if st.session_state.documents:
+
+    st.success(
+        f"Total documents in session: "
+        f"{len(st.session_state.documents)}"
+    )
+
+
+# --------------------------------------------------
+# Display uploaded documents
+# --------------------------------------------------
+
+if st.session_state.documents:
+
+    st.subheader("📚 Documents")
+
+    for document in st.session_state.documents:
+
+        metadata = document["metadata"]
+
+        st.write(
+            f"**{metadata['source']}**"
+        )
+
+        st.write(
+            f"Type: `{metadata['file_type']}`"
+        )
+
+        st.write(
+            f"Extracted items: "
+            f"{len(document['data'])}"
+        )
+
+        st.divider()
